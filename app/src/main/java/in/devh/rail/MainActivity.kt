@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +23,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.layout.ContentScale
 import com.slaviboy.iconscompose.Icon
 import com.slaviboy.iconscompose.R
 
@@ -35,7 +38,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,9 +71,11 @@ fun TrainApp(navController: NavHostController = rememberNavController()) {
                 TopAppBar(
                     title = { Text("Rail Status") },
                     navigationIcon = {
-                        IconButton(onClick = {
-                            scope.launch { drawerState.open() }
-                        }) {
+                        IconButton(
+                            colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            onClick = {
+                                scope.launch { drawerState.open() }
+                            }) {
                             Icon(Icons.Filled.Menu, contentDescription = "Menu")
                         }
                     },
@@ -85,7 +89,7 @@ fun TrainApp(navController: NavHostController = rememberNavController()) {
                 NavigationBar {
                     listOf("Home", "PNR", "Live Status", "Schedule").forEachIndexed { index, item ->
                         NavigationBarItem(
-                            icon = { getIconForItem(item) },
+                            icon = { GetIconForItem(item) },
                             label = { Text(item) },
                             selected = selectedTab == index,
                             onClick = { selectedTab = index }
@@ -100,7 +104,6 @@ fun TrainApp(navController: NavHostController = rememberNavController()) {
                     .padding(innerPadding)
                     .padding(16.dp)
             ) {
-
 
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -119,7 +122,13 @@ fun TrainApp(navController: NavHostController = rememberNavController()) {
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors()
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
+                    Icon(
+                        modifier = Modifier
+                            .width(15.dp)
+                            .height(15.dp),
+                        type = R.drawable.fi_br_search,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Find Trains")
                 }
@@ -176,21 +185,26 @@ fun SwitchStationDivider(
     ) {
         HorizontalDivider(
             modifier = Modifier.weight(1f),
-            thickness = 1.dp,
+            thickness = 1.2.dp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         IconButton(
+            colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
             onClick = onSwitchClick,
-            modifier = Modifier.size(24.dp)
-
+            modifier = Modifier.border(
+                BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant),
+                MaterialTheme.shapes.extraLarge
+            )
         ) {
 
             Icon(
+                contentScale = ContentScale.FillHeight,
                 modifier = Modifier
                     .width(15.dp)
                     .height(15.dp),
-                type = R.drawable.fi_rr_sort_alt,
+                type = R.drawable.fi_br_sort_alt,
+                color = MaterialTheme.colorScheme.primary
             )
 
         }
@@ -217,7 +231,8 @@ fun StationRow(station: Station) {
         }
         Spacer(modifier = Modifier.width(8.dp))
         Text(text = station.name, modifier = Modifier.weight(1f))
-        IconButton(onClick = { /* Handle remove */ }) {
+        IconButton(colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            onClick = { /* Handle remove */ }) {
             Icon(Icons.Default.Close, contentDescription = "Remove")
         }
     }
@@ -227,7 +242,11 @@ fun StationRow(station: Station) {
 fun SpotTrainCard(train: Train) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("SPOT TRAIN", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(
+                "SPOT TRAIN",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
@@ -241,14 +260,17 @@ fun SpotTrainCard(train: Train) {
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(text = train.name, modifier = Modifier.weight(1f))
-                IconButton(onClick = { /* Handle remove */ }) {
-                    Icon(Icons.Default.Close, contentDescription = "Remove")
-                }
                 IconButton(
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                     onClick = { /* Handle search */ },
-                    colors = IconButtonDefaults.iconButtonColors()
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
+                    Icon(
+                        modifier = Modifier
+                            .width(15.dp)
+                            .height(15.dp),
+                        type = R.drawable.fi_br_search,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
                 }
             }
         }
@@ -259,7 +281,11 @@ fun SpotTrainCard(train: Train) {
 fun LiveStationCard(station: Station) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("LIVE STATION", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(
+                "LIVE STATION",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
@@ -273,14 +299,18 @@ fun LiveStationCard(station: Station) {
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(text = station.name, modifier = Modifier.weight(1f))
-                IconButton(onClick = { /* Handle remove */ }) {
-                    Icon(Icons.Default.Close, contentDescription = "Remove")
-                }
+
                 IconButton(
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                     onClick = { /* Handle search */ },
-                    colors = IconButtonDefaults.iconButtonColors()
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
+                    Icon(
+                        modifier = Modifier
+                            .width(15.dp)
+                            .height(15.dp),
+                        type = R.drawable.fi_br_search,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
                 }
             }
         }
@@ -305,7 +335,13 @@ fun TrainListItem(train: Train) {
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.primary)
+        Icon(
+            modifier = Modifier
+                .width(15.dp)
+                .height(15.dp),
+            type = R.drawable.fi_br_search_alt,
+            color = MaterialTheme.colorScheme.secondary
+        )
         Spacer(modifier = Modifier.width(16.dp))
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -330,22 +366,23 @@ data class Station(val code: String, val name: String)
 data class Train(val number: String, val name: String, val route: String = "")
 
 @Composable
-fun getIconForItem(item: String) = when(item) {
+fun GetIconForItem(item: String) = when (item) {
     "Home" ->
         Icon(
             modifier = Modifier
                 .width(15.dp)
                 .height(15.dp),
-            type = R.drawable.fi_rr_train,
-
-            )
+            type = R.drawable.fi_br_train,
+            color = MaterialTheme.colorScheme.secondary
+        )
 
     "PNR" ->
         Icon(
             modifier = Modifier
                 .width(15.dp)
                 .height(15.dp),
-            type = R.drawable.fi_rr_list,
+            type = R.drawable.fi_br_list,
+            color = MaterialTheme.colorScheme.secondary
         )
 
     "Live Status" ->
@@ -353,24 +390,28 @@ fun getIconForItem(item: String) = when(item) {
             modifier = Modifier
                 .width(15.dp)
                 .height(15.dp),
-            type = R.drawable.fi_rr_train_side,
+            type = R.drawable.fi_br_train_side,
+            color = MaterialTheme.colorScheme.secondary
         )
 
     "Schedule" -> Icon(
         modifier = Modifier
             .width(15.dp)
             .height(15.dp),
-        type = R.drawable.fi_rr_calendar,
+        type = R.drawable.fi_br_calendar,
+        color = MaterialTheme.colorScheme.secondary
     )
+
     else -> Icon(
         modifier = Modifier
             .width(15.dp)
             .height(15.dp),
-        type = R.drawable.fi_rr_info,
+        type = R.drawable.fi_br_info,
+        color = MaterialTheme.colorScheme.secondary
     )
 }
 
-@Preview(showBackground = true,)
+@Preview(showBackground = true)
 @Composable
 fun RailAppPreview() {
     RailTheme(darkTheme = true, dynamicColor = true) {
