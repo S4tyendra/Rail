@@ -63,6 +63,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.androidx.material.icons.extended.v143)
     implementation(libs.iconscompose)
+    implementation(libs.oneui6.material3.dynamic.color.compose)
+
 
 
 
