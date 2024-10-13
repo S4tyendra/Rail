@@ -1,5 +1,6 @@
 [versions]
 agp = "8.7.0"
+converterGson = "2.9.0"
 feather = "1.1.0"
 iconscompose = "0.0.1"
 kotlin = "2.0.0"
@@ -10,14 +11,21 @@ espressoCore = "3.5.1"
 lifecycleRuntimeKtx = "2.6.1"
 activityCompose = "1.8.0"
 composeBom = "2024.04.01"
+lifecycleRuntimeKtxVersion = "2.4.0"
+lifecycleViewmodelCompose = "2.8.6"
 materialIconsExtended = "1.7.3"
 materialIconsExtendedVersion = "1.4.3"
 navigationCompose = "2.8.2"
+okhttp = "4.10.0"
+retrofit = "2.9.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx-v240 = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtxVersion" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-material-icons-extended-v143 = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtendedVersion" }
+converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
 feather = { module = "br.com.devsrsouza.compose.icons:feather", version.ref = "feather" }
 font-awesome = { module = "br.com.devsrsouza.compose.icons:font-awesome", version.ref = "feather" }
 iconscompose = { module = "com.github.slaviboy:IconsCompose", version.ref = "iconscompose" }
@@ -35,6 +43,8 @@ androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-man
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 simple-icons = { module = "br.com.devsrsouza.compose.icons:simple-icons", version.ref = "feather" }
 
 [plugins]
