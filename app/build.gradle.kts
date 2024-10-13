@@ -54,6 +54,10 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.activity)
+    implementation(libs.androidx.constraintlayout)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -64,8 +68,9 @@ dependencies {
     implementation(libs.androidx.material.icons.extended.v143)
     implementation(libs.iconscompose)
     implementation(libs.oneui6.material3.dynamic.color.compose)
-
-
-
-
+    implementation(libs.converter.gson)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.ktx.v240)
+    implementation(libs.okhttp)
+    implementation(libs.androidx.datastore.preferences)
 }
