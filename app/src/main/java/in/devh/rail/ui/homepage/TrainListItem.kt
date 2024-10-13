@@ -46,7 +46,7 @@ fun TrainListItem(train: Train) {
                 .width(15.dp)
                 .height(15.dp),
             type = R.drawable.fi_br_search_alt,
-            color = MaterialTheme.colorScheme.secondary
+            color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column {

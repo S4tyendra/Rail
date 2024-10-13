@@ -3,13 +3,14 @@ package `in`.devh.rail.pages
 import android.content.Intent
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -30,17 +31,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import `in`.devh.rail.SettingsActivityy
+import `in`.devh.rail.SettingsActivity
 import `in`.devh.rail.ui.homepage.GetIconForItem
 import `in`.devh.rail.ui.homepage.HomeContent
-import `in`.devh.rail.ui.pnrpage.PNRScreen
 import `in`.devh.rail.ui.urlfetcher.URLFetcherScreen
 import kotlinx.coroutines.launch
+import com.slaviboy.iconscompose.Icon
+import com.slaviboy.iconscompose.R
+
+
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,7 +73,7 @@ fun HomeScreen(
                     selected = false,
                     onClick = {
                         val context = navController.context.applicationContext
-                        val intent = Intent(context, SettingsActivityy::class.java).apply {
+                        val intent = Intent(context, SettingsActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                         context.startActivity(intent)
@@ -92,7 +97,15 @@ fun HomeScreen(
                             onClick = {
                                 scope.launch { drawerState.open() }
                             }) {
-                            Icon(Icons.Filled.Menu, contentDescription = "Menu")
+
+                            Icon(
+                                modifier = Modifier
+                                    .width(15.dp)
+                                    .height(15.dp),
+                                type = R.drawable.fi_br_menu_burger,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -102,7 +115,17 @@ fun HomeScreen(
                 )
             },
             bottomBar = {
-                NavigationBar {
+                NavigationBar(
+                    modifier = Modifier
+                        .graphicsLayer {
+                            shadowElevation = 8.dp.toPx()
+                            shape = RoundedCornerShape( 25.dp)
+                            clip = true
+
+                        }
+
+                    ,
+                ) {
                     listOf("Home", "PNR", "Live Status", "Schedule").forEachIndexed { index, item ->
                         NavigationBarItem(
                             icon = { GetIconForItem(item) },

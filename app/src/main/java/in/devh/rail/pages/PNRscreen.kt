@@ -1,4 +1,4 @@
-package `in`.devh.rail.ui.pnrpage
+package `in`.devh.rail.pages
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,6 +12,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import `in`.devh.rail.ui.theme.RailTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -124,7 +125,7 @@ class PNRViewModel : ViewModel() {
     }
 }
 @Composable
-fun PNRScreen(viewModel: PNRViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
+fun PNRScreen(viewModel: PNRViewModel = viewModel()) {
     var pnrNumber by remember { mutableStateOf("") }
     val pnrResponse by viewModel.pnrResponse.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()

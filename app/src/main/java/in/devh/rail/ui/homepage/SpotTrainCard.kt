@@ -53,7 +53,7 @@ fun SpotTrainCard(train: Train) {
                             .width(15.dp)
                             .height(15.dp),
                         type = R.drawable.fi_br_search,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }

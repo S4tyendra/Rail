@@ -18,7 +18,7 @@ fun GetIconForItem(item: String) = when (item) {
                 .width(15.dp)
                 .height(15.dp),
             type = R.drawable.fi_br_train,
-            color = MaterialTheme.colorScheme.secondary
+            color = MaterialTheme.colorScheme.primary
         )
 
     "PNR" ->
@@ -27,7 +27,7 @@ fun GetIconForItem(item: String) = when (item) {
                 .width(15.dp)
                 .height(15.dp),
             type = R.drawable.fi_br_list,
-            color = MaterialTheme.colorScheme.secondary
+            color = MaterialTheme.colorScheme.primary
         )
 
     "Live Status" ->
@@ -36,7 +36,7 @@ fun GetIconForItem(item: String) = when (item) {
                 .width(15.dp)
                 .height(15.dp),
             type = R.drawable.fi_br_train_side,
-            color = MaterialTheme.colorScheme.secondary
+            color = MaterialTheme.colorScheme.primary
         )
 
     "Schedule" -> Icon(
@@ -44,7 +44,7 @@ fun GetIconForItem(item: String) = when (item) {
             .width(15.dp)
             .height(15.dp),
         type = R.drawable.fi_br_calendar,
-        color = MaterialTheme.colorScheme.secondary
+        color = MaterialTheme.colorScheme.primary
     )
 
     else -> Icon(
@@ -52,6 +52,6 @@ fun GetIconForItem(item: String) = when (item) {
             .width(15.dp)
             .height(15.dp),
         type = R.drawable.fi_br_info,
-        color = MaterialTheme.colorScheme.secondary
+        color = MaterialTheme.colorScheme.primary
     )
 }

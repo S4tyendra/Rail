@@ -15,10 +15,9 @@
         android:theme="@style/Theme.Rail"
         tools:targetApi="31">
         <activity
-            android:name=".SettingsActivityy"
-
-            android:theme="@style/Theme.AppCompat"
-            android:exported="true"
+            android:name=".SettingsActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:exported="false"
             />
 
 

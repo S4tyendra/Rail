@@ -1,6 +1,7 @@
 package `in`.devh.rail.pages
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -17,16 +18,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.slaviboy.iconscompose.Icon
 import `in`.devh.rail.ui.theme.SettingsTheme
+import com.slaviboy.iconscompose.R
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreenWrapper() {
+    val context = LocalContext.current
     SettingsTheme(dynamicColor = true) {
         Scaffold(
             topBar = {
                 TopAppBar(
+                    navigationIcon = {
+                        IconButton(
+                            colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            onClick = {
+                                // Handle back button
+                                (context as? Activity)?.finish()
+                            }) {
+                            Icon(
+                                modifier = Modifier
+                                    .width(20.dp)
+                                    .height(20.dp),
+                                type = R.drawable.fi_br_angle_small_left,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
                     title = { Text("Settings") },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -43,6 +63,8 @@ fun SettingsScreenWrapper() {
         }
     }
 }
+
+
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
