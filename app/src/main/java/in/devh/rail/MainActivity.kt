@@ -14,13 +14,16 @@ import androidx.annotation.RequiresApi
 import `in`.devh.rail.pages.TrainApp
 
 
+
 class MainActivity : ComponentActivity() {
+
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val sharedPref: SharedPreferences = getSharedPreferences("rail", Context.MODE_PRIVATE)
+        val sharedPref: SharedPreferences = getSharedPreferences("rail", MODE_PRIVATE)
         val isFirstLaunch = sharedPref.getBoolean("isFirstLaunch", true)
+
         setContent {
             RailTheme(dynamicColor = true) {
                 TrainApp(isFirstLaunch = isFirstLaunch)

@@ -1,146 +1,138 @@
 package `in`.devh.rail.pages
 
-import android.content.Intent
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandIn
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import `in`.devh.rail.SettingsActivity
-import `in`.devh.rail.ui.homepage.GetIconForItem
-import `in`.devh.rail.ui.homepage.HomeContent
-import `in`.devh.rail.ui.urlfetcher.URLFetcherScreen
-import kotlinx.coroutines.launch
 import com.slaviboy.iconscompose.Icon
 import com.slaviboy.iconscompose.R
+import `in`.devh.rail.ui.components.BottomNavBar
+import `in`.devh.rail.ui.components.DrawerContent
+import `in`.devh.rail.ui.components.TopBar
+import `in`.devh.rail.ui.homepage.HomeContent
+import `in`.devh.rail.ui.urlfetcher.URLFetcherScreen
+import androidx.compose.runtime.compositionLocalOf
 
-
+val LocalNavController = compositionLocalOf<NavHostController> { error("NavController not provided") }
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrainApp(isFirstLaunch: Boolean, navController: NavHostController = rememberNavController()) {
-    HomeScreen(navController)
+fun TrainApp(isFirstLaunch: Boolean) {
+    val navController = rememberNavController()
+    CompositionLocalProvider(LocalNavController provides navController) {
+        HomeScreen(navController)
+    }
+//    HomeScreen(navController)
+//    navController: NavHostController = LocalNavController.current
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     navController: NavHostController
-){
+) {
+    val openDialog = remember { mutableStateOf(false) }
     var selectedTab by remember { mutableIntStateOf(0) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+
+    if (openDialog.value) {
+        AlertDialog(
+            onDismissRequest = { openDialog.value = false },
+            title = { Text(text = "Title") },
+            text = { Text("This is an alert dialog.") },
+            confirmButton = {
+                TextButton(
+                    onClick = { openDialog.value = false }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { openDialog.value = false }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                Text("Rail App", modifier = Modifier.padding(16.dp))
-                HorizontalDivider()
-                NavigationDrawerItem(
-                    label = { Text("Settings") },
-                    selected = false,
-                    onClick = {
-                        val context = navController.context.applicationContext
-                        val intent = Intent(context, SettingsActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        context.startActivity(intent)
-                    }
-                )
-                NavigationDrawerItem(
-                    label = { Text("About") },
-                    selected = false,
-                    onClick = { /* Handle about click */ }
-                )
-            }
-        }
+        drawerContent = { DrawerContent(navController) },
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { Text("Rail Status") },
-                    navigationIcon = {
-                        IconButton(
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                            onClick = {
-                                scope.launch { drawerState.open() }
-                            }) {
-
+                TopBar(
+                    scope = scope,
+                    drawerState = drawerState
+                )
+            },
+            bottomBar = {
+                BottomNavBar(
+                    navController = navController,
+                    selectedTab = selectedTab,
+                    setSelectedTab = { selectedTab = it }
+                )
+            },
+            floatingActionButton = {
+                AnimatedVisibility(
+                    visible = currentRoute == "pnr",
+                    enter = fadeIn(animationSpec = tween(400)) + expandIn(expandFrom = Alignment.Center),
+                    exit = fadeOut(animationSpec = tween(400)) + shrinkOut(shrinkTowards = Alignment.Center)
+                ) {
+                    ExtendedFloatingActionButton(
+                        text = { Text("Add PNR") },
+                        onClick = {
+                            openDialog.value = true
+                        },
+                        icon = {
                             Icon(
                                 modifier = Modifier
                                     .width(15.dp)
                                     .height(15.dp),
-                                type = R.drawable.fi_br_menu_burger,
-                                color = MaterialTheme.colorScheme.primary
+                                type = R.drawable.fi_br_plus,
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
-
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        titleContentColor = MaterialTheme.colorScheme.primary,
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
-                )
-            },
-            bottomBar = {
-                NavigationBar(
-                    modifier = Modifier
-                        .graphicsLayer {
-                            shadowElevation = 8.dp.toPx()
-                            shape = RoundedCornerShape( 25.dp)
-                            clip = true
-
-                        }
-
-                    ,
-                ) {
-                    listOf("Home", "PNR", "Live Status", "Schedule").forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            icon = { GetIconForItem(item) },
-                            label = { Text(item) },
-                            selected = selectedTab == index,
-                            onClick = {
-                                selectedTab = index
-                                when (item) {
-                                    "Home" -> navController.navigate("home")
-                                    "PNR" -> navController.navigate("pnr")
-                                    "Live Status" -> navController.navigate("live_status")
-                                }
-                            }
-                        )
-                    }
                 }
             }
         ) { innerPadding ->

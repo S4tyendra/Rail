@@ -1,7 +1,8 @@
 [versions]
-agp = "8.7.0"
+agp = "8.7.1"
 datastorePreferences = "1.1.1"
 feather = "1.1.0"
+gradle = "8.1.0"
 iconscompose = "0.0.1"
 kotlin = "2.0.0"
 coreKtx = "1.10.1"
@@ -34,6 +35,7 @@ androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-
 androidx-material-icons-extended-v143 = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtendedVersion" }
 feather = { module = "br.com.devsrsouza.compose.icons:feather", version.ref = "feather" }
 font-awesome = { module = "br.com.devsrsouza.compose.icons:font-awesome", version.ref = "feather" }
+gradle = { module = "com.android.tools.build:gradle", version.ref = "gradle" }
 iconscompose = { module = "com.github.slaviboy:IconsCompose", version.ref = "iconscompose" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
