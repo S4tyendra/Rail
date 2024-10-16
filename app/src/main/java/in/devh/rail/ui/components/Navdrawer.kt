@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import `in`.devh.rail.CellTower
 import `in`.devh.rail.SettingsActivity
 
 @Composable
@@ -32,7 +33,13 @@ fun DrawerContent(navController: NavHostController) {
         NavigationDrawerItem(
             label = { Text("About") },
             selected = false,
-            onClick = { /* Handle about click */ }
+            onClick = {
+                val context = navController.context.applicationContext
+                val intent = Intent(context, CellTower::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            }
         )
     }
 }

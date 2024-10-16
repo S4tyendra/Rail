@@ -76,5 +76,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx.v240)
     implementation(libs.okhttp)
     implementation(libs.androidx.datastore.preferences)
+    implementation (libs.netmonster.core)
 
 }
