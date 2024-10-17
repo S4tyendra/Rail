@@ -5,14 +5,19 @@ import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -28,64 +33,135 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import `in`.devh.rail.ui.theme.RailTheme
 import org.json.JSONObject
-
 import cz.mroczis.netmonster.core.factory.NetMonsterFactory
 import cz.mroczis.netmonster.core.model.cell.*
 import cz.mroczis.netmonster.core.model.connection.PrimaryConnection
-import cz.mroczis.netmonster.core.model.signal.SignalGsm
-import cz.mroczis.netmonster.core.model.signal.SignalLte
-import cz.mroczis.netmonster.core.model.signal.SignalNr
-import cz.mroczis.netmonster.core.model.signal.SignalTdscdma
-import cz.mroczis.netmonster.core.model.signal.SignalWcdma
-import cz.mroczis.netmonster.core.model.signal.SignalCdma
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import `in`.devh.rail.data.models.LogsData
+import `in`.devh.rail.functions.Logs.LogCollector
+import `in`.devh.rail.functions.Logs.logD
+import `in`.devh.rail.workers.CellLocationWorker
+import java.util.concurrent.TimeUnit
 
 
-object LogCollector {
-    var logs = StringBuilder()
-
-    fun appendLog(tag: String, message: String) {
-        logs.append("$tag: $message\n")
-    }
-
-    fun getLogs(): String {
-        return logs.toString()
-    }
-
-    fun clearLogs() {
-        logs.clear()
-    }
-}
-
-fun LogD(tag: String, message: String) {
-    Log.d(tag, message)
-    LogCollector.appendLog(tag, message)
-}
 private const val TAG = "CellTower"
+private const val REQUEST_PERMISSIONS = 1
 
+@RequiresApi(Build.VERSION_CODES.Q)
+private val REQUIRED_PERMISSIONS = arrayOf(
+    Manifest.permission.ACCESS_FINE_LOCATION,
+    Manifest.permission.READ_PHONE_STATE,
+    Manifest.permission.ACCESS_BACKGROUND_LOCATION
+)
+
+@RequiresApi(Build.VERSION_CODES.Q)
 class CellTower : AppCompatActivity() {
+    private lateinit var cellInfoWrapper: CellInfoWrapper
+    private lateinit var locationWrapper: LocationWrapper
+
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        scheduleCellLocationWorker()
         super.onCreate(savedInstanceState)
         LogCollector.clearLogs()
-
-        LogD(TAG, "CellTower: onCreate")
+        logD(TAG, "CellTower: onCreate")
         supportActionBar?.hide()
+
+        cellInfoWrapper = CellInfoWrapper(this)
+        locationWrapper = LocationWrapper(this)
+
         setContent {
             RailTheme(dynamicColor = true) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    CellInfoDisplay()
+                    PermissionHandler(REQUIRED_PERMISSIONS) {
+                        CellInfoDisplay()
+                    }
                 }
             }
         }
+
+        if (!hasPermissions()) {
+            requestPermissions()
+        }
+    }
+
+    private fun hasPermissions(): Boolean {
+        return REQUIRED_PERMISSIONS.all {
+            ActivityCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun requestPermissions() {
+        ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_PERMISSIONS)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_PERMISSIONS) {
+            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                logD(TAG, "All permissions granted")
+                updateCellInfo()
+            } else {
+                logD(TAG, "Some permissions were denied")
+                Toast.makeText(this, "Permissions are required for full functionality", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun scheduleCellLocationWorker() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val workRequest = PeriodicWorkRequestBuilder<CellLocationWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "CellLocationWork",
+            ExistingPeriodicWorkPolicy.REPLACE,
+            workRequest
+        )
+    }
+
+    fun updateCellInfo(
+
+    ): CellData {
+        logD(TAG, "updateCellInfo: Started")
+        if (!hasPermissions()) {
+            logD(TAG, "updateCellInfo: Permissions not granted")
+            requestPermissions()
+            return CellData()
+        }
+
+        val cellData = cellInfoWrapper.getCellInfo()
+
+        locationWrapper.getLocation { location ->
+            logD(TAG, "updateCellInfo: Location received - Lat: ${location.latitude}, Lon: ${location.longitude}")
+            cellData.longitude = location.longitude.toString()
+            cellData.latitude = location.latitude.toString()
+        }
+
+        return cellData
     }
 }
-
 data class CellData(
     var mcc: String = "",
     var mnc: String = "",
@@ -114,32 +190,135 @@ fun CellData.toJson(): String {
         put("strengthNR", nrSignal)
         put("strengthTDSCDMA", tdscdmaSignal)
     }.toString().also {
-        LogD(TAG, "CellData.toJson: $it")
+        logD(TAG, "CellData.toJson: $it")
     }
+}
+
+
+@RequiresApi(Build.VERSION_CODES.Q)
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+fun PermissionHandler(
+    permissions: Array<String>,
+    onPermissionsGranted: @Composable () -> Unit
+) {
+    val context = LocalContext.current
+    var showRationale by remember { mutableStateOf(false) }
+
+    val permissionState = rememberMultiplePermissionsState(listOf(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.READ_PHONE_STATE,
+        Manifest.permission.ACCESS_BACKGROUND_LOCATION
+    ))
+
+    when {
+        permissionState.allPermissionsGranted -> {
+            onPermissionsGranted()
+        }
+        permissionState.shouldShowRationale || !permissionState.allPermissionsGranted -> {
+            PermissionDeniedContent(
+                onRequestPermission = { permissionState.launchMultiplePermissionRequest() },
+                onOpenSettings = {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                }
+            )
+        }
+        else -> {
+            SideEffect {
+                permissionState.launchMultiplePermissionRequest()
+            }
+        }
+    }
+
+    if (showRationale) {
+        RationaleDialog(
+            onDismiss = { showRationale = false },
+            onConfirm = {
+                showRationale = false
+                permissionState.launchMultiplePermissionRequest()
+            }
+        )
+    }
+}
+
+@Composable
+fun PermissionDeniedContent(
+    onRequestPermission: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.sad_dog), // Make sure to add this image to your drawable resources
+            contentDescription = "Sad dog",
+            modifier = Modifier.size(200.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            "Oh no! We're feeling a bit lost without those permissions.",
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "Please help us find our way by granting the permissions we need.",
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRequestPermission) {
+            Text("Grant Permissions")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        TextButton(onClick = onOpenSettings) {
+            Text("Open Settings")
+        }
+    }
+}
+@Composable
+fun RationaleDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Permissions Required") },
+        text = { Text("This app requires location and phone state permissions to function properly. Please grant the permissions to continue.") },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CellInfoDisplay() {
-
-    LogD(TAG, "CellInfoDisplay: Composable function called")
+    logD(TAG, "CellInfoDisplay: Composable function called")
     val context = LocalContext.current
     var cellDataJson by remember { mutableStateOf("{}") }
     var isLoadingGPS by remember { mutableStateOf(false) }
 
     fun updateCellInfo() {
-        LogD(TAG, "updateCellInfo: Started")
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Log.e(TAG, "updateCellInfo: Permission ACCESS_FINE_LOCATION not granted")
-            return
-        }
-
+        logD(TAG, "updateCellInfo: Started")
         val cellInfoWrapper = CellInfoWrapper(context)
         val cellData = cellInfoWrapper.getCellInfo()
 
         isLoadingGPS = true
         LocationWrapper(context).getLocation { location ->
-            LogD(TAG, "updateCellInfo: Location received - Lat: ${location.latitude}, Lon: ${location.longitude}")
+            logD(TAG, "updateCellInfo: Location received - Lat: ${location.latitude}, Lon: ${location.longitude}")
             cellData.longitude = location.longitude.toString()
             cellData.latitude = location.latitude.toString()
             cellDataJson = cellData.toJson()
@@ -147,26 +326,36 @@ fun CellInfoDisplay() {
         }
 
         cellDataJson = cellData.toJson()
-        LogD(TAG, "updateCellInfo: Completed")
+        logD(TAG, "updateCellInfo: Completed")
     }
 
     fun copyJsonToClipboard() {
-        LogD(TAG, "copyJsonToClipboard: Copying JSON to clipboard")
+        logD(TAG, "copyJsonToClipboard: Copying JSON to clipboard")
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("Cell Info JSON", cellDataJson)
         clipboard.setPrimaryClip(clip)
         Toast.makeText(context, "JSON copied to clipboard", Toast.LENGTH_SHORT).show()
     }
+
     fun copyLogs() {
-        LogD(TAG, "copyLogs: Copying logs to clipboard")
+        logD(TAG, "copyLogs: Copying logs to clipboard")
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("Logs", LogCollector.getLogs())
         clipboard.setPrimaryClip(clip)
         Toast.makeText(context, "Logs copied to clipboard", Toast.LENGTH_SHORT).show()
     }
+    fun showSavedData() {
+
+    }
+
+    fun saveData() {
+        logD(TAG, "saveData: Saving data")
+
+        Toast.makeText(context, "Data saved", Toast.LENGTH_SHORT).show()
+    }
 
     LaunchedEffect(Unit) {
-        LogD(TAG, "CellInfoDisplay: LaunchedEffect triggered")
+        logD(TAG, "CellInfoDisplay: LaunchedEffect triggered")
         updateCellInfo()
     }
 
@@ -176,7 +365,7 @@ fun CellInfoDisplay() {
                 title = { Text("Cell Information") },
                 actions = {
                     IconButton(onClick = {
-                        LogD(TAG, "CellInfoDisplay: Refresh button clicked")
+                        logD(TAG, "CellInfoDisplay: Refresh button clicked")
                         updateCellInfo()
                     }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
@@ -194,7 +383,7 @@ fun CellInfoDisplay() {
         ) {
             val cellData = remember(cellDataJson) {
                 JSONObject(cellDataJson).also {
-                    LogD(TAG, "CellInfoDisplay: Parsed JSON - $it")
+                    logD(TAG, "CellInfoDisplay: Parsed JSON - $it")
                 }
             }
 
@@ -239,7 +428,7 @@ fun CellInfoDisplay() {
 
             Button(
                 onClick = {
-                    LogD(TAG, "CellInfoDisplay: Copy JSON button clicked")
+                    logD(TAG, "CellInfoDisplay: Copy JSON button clicked")
                     copyJsonToClipboard()
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -249,21 +438,31 @@ fun CellInfoDisplay() {
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = {
-                    LogD(TAG, "Copy logs button clicked")
+                    logD(TAG, "Copy logs button clicked")
                     copyLogs()
-
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Copy Logs")
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    logD(TAG, "Show Saved Data button clicked")
+                    showSavedData()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Show saved data")
+            }
+
         }
     }
 }
 
 @Composable
 fun CellInfoCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    LogD(TAG, "CellInfoCard: Rendering card with title - $title")
+    logD(TAG, "CellInfoCard: Rendering card with title - $title")
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -283,7 +482,7 @@ fun CellInfoCard(title: String, content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 fun InfoRow(label: String, value: String) {
-    LogD(TAG, "InfoRow: $label - $value")
+    logD(TAG, "InfoRow: $label - $value")
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -296,20 +495,21 @@ fun InfoRow(label: String, value: String) {
 }
 
 class CellInfoWrapper(private val context: Context) {
+    @SuppressLint("MissingPermission")
     fun getCellInfo(): CellData {
-        LogD(TAG, "getCellInfo: Started")
+        logD(TAG, "getCellInfo: Started")
         val cellData = CellData()
         val netMonster = NetMonsterFactory.get(context)
 
         val cells = netMonster.getCells()
-        LogD(TAG, "getCellInfo: All cells - $cells")
+        logD(TAG, "getCellInfo: All cells - $cells")
         val servingCell = cells.firstOrNull { it.connectionStatus is PrimaryConnection }
-        LogD(TAG, "getCellInfo: Serving cell - $servingCell")
+        logD(TAG, "getCellInfo: Serving cell - $servingCell")
 
         servingCell?.let { cell ->
             when (cell) {
                 is CellGsm -> {
-                    LogD(TAG, "getCellInfo: GSM cell detected")
+                    logD(TAG, "getCellInfo: GSM cell detected")
                     cellData.mcc = cell.network?.mcc ?: ""
                     cellData.mnc = cell.network?.mnc ?: ""
                     cellData.lac = cell.lac.toString()
@@ -317,7 +517,7 @@ class CellInfoWrapper(private val context: Context) {
                     cellData.gsmSignal = "${cell.signal.rssi} dBm"
                 }
                 is CellWcdma -> {
-                    LogD(TAG, "getCellInfo: WCDMA cell detected")
+                    logD(TAG, "getCellInfo: WCDMA cell detected")
                     cellData.mcc = cell.network?.mcc ?: ""
                     cellData.mnc = cell.network?.mnc ?: ""
                     cellData.lac = cell.lac.toString()
@@ -325,7 +525,7 @@ class CellInfoWrapper(private val context: Context) {
                     cellData.wcdmaSignal = "${cell.signal.rscp} dBm"
                 }
                 is CellLte -> {
-                    LogD(TAG, "getCellInfo: LTE cell detected")
+                    logD(TAG, "getCellInfo: LTE cell detected")
                     cellData.mcc = cell.network?.mcc ?: ""
                     cellData.mnc = cell.network?.mnc ?: ""
                     cellData.lac = cell.tac.toString()
@@ -333,7 +533,7 @@ class CellInfoWrapper(private val context: Context) {
                     cellData.lteSignal = "${cell.signal.rsrp} dBm"
                 }
                 is CellNr -> {
-                    LogD(TAG, "getCellInfo: NR cell detected")
+                    logD(TAG, "getCellInfo: NR cell detected")
                     cellData.mcc = cell.network?.mcc ?: ""
                     cellData.mnc = cell.network?.mnc ?: ""
                     cellData.lac = cell.tac.toString()
@@ -341,7 +541,7 @@ class CellInfoWrapper(private val context: Context) {
                     cellData.nrSignal = "${cell.signal.ssRsrp} dBm"
                 }
                 is CellTdscdma -> {
-                    LogD(TAG, "getCellInfo: TD-SCDMA cell detected")
+                    logD(TAG, "getCellInfo: TD-SCDMA cell detected")
                     cellData.mcc = cell.network?.mcc ?: ""
                     cellData.mnc = cell.network?.mnc ?: ""
                     cellData.lac = cell.lac.toString()
@@ -351,7 +551,7 @@ class CellInfoWrapper(private val context: Context) {
             }
         }
 
-        LogD(TAG, "getCellInfo: Completed - $cellData")
+        logD(TAG, "getCellInfo: Completed - $cellData")
         return cellData
     }
 }
@@ -359,26 +559,26 @@ class CellInfoWrapper(private val context: Context) {
 class LocationWrapper(private val context: Context) {
     @SuppressLint("MissingPermission")
     fun getLocation(callback: (Location) -> Unit) {
-        LogD(TAG, "getLocation: Started")
+        logD(TAG, "getLocation: Started")
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val locationListener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
-                LogD(TAG, "getLocation: Location changed - Lat: ${location.latitude}, Lon: ${location.longitude}")
+                logD(TAG, "getLocation: Location changed - Lat: ${location.latitude}, Lon: ${location.longitude}")
                 callback(location)
                 locationManager.removeUpdates(this)
             }
             override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
-                LogD(TAG, "getLocation: Status changed - Provider: $provider, Status: $status")
+                logD(TAG, "getLocation: Status changed - Provider: $provider, Status: $status")
             }
             override fun onProviderEnabled(provider: String) {
-                LogD(TAG, "getLocation: Provider enabled - $provider")
+                logD(TAG, "getLocation: Provider enabled - $provider")
             }
             override fun onProviderDisabled(provider: String) {
-                LogD(TAG, "getLocation: Provider disabled - $provider")
+                logD(TAG, "getLocation: Provider disabled - $provider")
             }
         }
 
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, locationListener)
-        LogD(TAG, "getLocation: Location updates requested")
+        logD(TAG, "getLocation: Location updates requested")
     }
 }

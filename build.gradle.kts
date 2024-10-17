@@ -5,14 +5,11 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
 }
 buildscript {
-     val objectboxVersion by extra("4.0.2") // For KTS build scripts
-
     repositories {
         mavenCentral()
     }
 
     dependencies {
         classpath(libs.gradle)
-        classpath("io.objectbox:objectbox-gradle-plugin:$objectboxVersion")
     }
 }

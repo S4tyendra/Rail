@@ -2,9 +2,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("kotlin-android") // Only for Kotlin projects
-    id("kotlin-kapt") // Only for Kotlin projects
-    id("io.objectbox") // Apply last
 }
 
 
@@ -77,5 +74,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.androidx.datastore.preferences)
     implementation (libs.netmonster.core)
+    implementation(libs.accompanist.permissions)
+    implementation(libs.androidx.work.runtime.ktx)
 
 }
