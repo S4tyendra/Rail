@@ -5,7 +5,5 @@ data class CellLocationData(
     var mnc: String = "",
     var lac: String = "",
     var cid: String = "",
-    var longitude: Double = 0.0,
-    var latitude: Double = 0.0,
     var timestamp: Long = System.currentTimeMillis()
 )

@@ -6,302 +6,210 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
-import `in`.devh.rail.ui.theme.RailTheme
-import org.json.JSONObject
-import cz.mroczis.netmonster.core.factory.NetMonsterFactory
-import cz.mroczis.netmonster.core.model.cell.*
-import cz.mroczis.netmonster.core.model.connection.PrimaryConnection
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import `in`.devh.rail.data.models.LogsData
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import `in`.devh.rail.functions.Logs.LogCollector
 import `in`.devh.rail.functions.Logs.logD
-import `in`.devh.rail.workers.CellLocationWorker
-import java.util.concurrent.TimeUnit
-
-
+import `in`.devh.rail.functions.handleServiceState
+import `in`.devh.rail.ui.theme.RailTheme
+import `in`.devh.rail.wrappers.CellInfoWrapper
+import `in`.devh.rail.wrappers.toJson
+import org.json.JSONObject
+import `in`.devh.rail.ui.components.SwitchListTile
+import `in`.devh.rail.utils.PermissionHandler
+import `in`.devh.rail.utils.PreferenceManager
+import `in`.devh.rail.utils.PreferenceManager.isServiceEnabled
+import com.slaviboy.iconscompose.Icon
+import `in`.devh.rail.database.Database
+import com.slaviboy.iconscompose.R as SR
+import androidx.compose.material3.rememberModalBottomSheetState
 private const val TAG = "CellTower"
-private const val REQUEST_PERMISSIONS = 1
-
-@RequiresApi(Build.VERSION_CODES.Q)
-private val REQUIRED_PERMISSIONS = arrayOf(
-    Manifest.permission.ACCESS_FINE_LOCATION,
-    Manifest.permission.READ_PHONE_STATE,
-    Manifest.permission.ACCESS_BACKGROUND_LOCATION
-)
 
 @RequiresApi(Build.VERSION_CODES.Q)
 class CellTower : AppCompatActivity() {
     private lateinit var cellInfoWrapper: CellInfoWrapper
-    private lateinit var locationWrapper: LocationWrapper
-
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        scheduleCellLocationWorker()
         super.onCreate(savedInstanceState)
         LogCollector.clearLogs()
         logD(TAG, "CellTower: onCreate")
-        supportActionBar?.hide()
+//        supportActionBar?.hide()
 
         cellInfoWrapper = CellInfoWrapper(this)
-        locationWrapper = LocationWrapper(this)
-
+        if (isServiceEnabled(this) &&
+            PermissionHandler.hasRequiredPermissions(this)) {
+            handleServiceState(true)
+        }
         setContent {
             RailTheme(dynamicColor = true) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.primaryContainer
+
                 ) {
-                    PermissionHandler(REQUIRED_PERMISSIONS) {
-                        CellInfoDisplay()
-                    }
+                    MainContent()
                 }
             }
         }
-
-        if (!hasPermissions()) {
-            requestPermissions()
-        }
-    }
-
-    private fun hasPermissions(): Boolean {
-        return REQUIRED_PERMISSIONS.all {
-            ActivityCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-
-    private fun requestPermissions() {
-        ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_PERMISSIONS)
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_PERMISSIONS) {
-            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                logD(TAG, "All permissions granted")
-                updateCellInfo()
-            } else {
-                logD(TAG, "Some permissions were denied")
-                Toast.makeText(this, "Permissions are required for full functionality", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private fun scheduleCellLocationWorker() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val workRequest = PeriodicWorkRequestBuilder<CellLocationWorker>(15, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "CellLocationWork",
-            ExistingPeriodicWorkPolicy.REPLACE,
-            workRequest
-        )
-    }
-
-    fun updateCellInfo(
-
-    ): CellData {
-        logD(TAG, "updateCellInfo: Started")
-        if (!hasPermissions()) {
-            logD(TAG, "updateCellInfo: Permissions not granted")
-            requestPermissions()
-            return CellData()
-        }
-
-        val cellData = cellInfoWrapper.getCellInfo()
-
-        locationWrapper.getLocation { location ->
-            logD(TAG, "updateCellInfo: Location received - Lat: ${location.latitude}, Lon: ${location.longitude}")
-            cellData.longitude = location.longitude.toString()
-            cellData.latitude = location.latitude.toString()
-        }
-
-        return cellData
-    }
-}
-data class CellData(
-    var mcc: String = "",
-    var mnc: String = "",
-    var lac: String = "",
-    var cid: String = "",
-    var longitude: String = "",
-    var latitude: String = "",
-    var gsmSignal: String = "",
-    var wcdmaSignal: String = "",
-    var lteSignal: String = "",
-    var nrSignal: String = "",
-    var tdscdmaSignal: String = ""
-)
-
-fun CellData.toJson(): String {
-    return JSONObject().apply {
-        put("mcc", mcc)
-        put("mnc", mnc)
-        put("lac", lac)
-        put("cid", cid)
-        put("longitude", longitude)
-        put("latitude", latitude)
-        put("strengthGSM", gsmSignal)
-        put("strengthWCDMA", wcdmaSignal)
-        put("strengthLTE", lteSignal)
-        put("strengthNR", nrSignal)
-        put("strengthTDSCDMA", tdscdmaSignal)
-    }.toString().also {
-        logD(TAG, "CellData.toJson: $it")
     }
 }
 
 
-@RequiresApi(Build.VERSION_CODES.Q)
+
+@SuppressLint("InlinedApi", "AutoboxingStateCreation")
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun PermissionHandler(
-    permissions: Array<String>,
-    onPermissionsGranted: @Composable () -> Unit
-) {
-    val context = LocalContext.current
-    var showRationale by remember { mutableStateOf(false) }
+fun MainContent() {
+    val phoneStatePermission = rememberPermissionState(Manifest.permission.READ_PHONE_STATE)
+    val locationPermission = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+    val bgLocationPermission = rememberPermissionState(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    val notificationPermission = rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
 
-    val permissionState = rememberMultiplePermissionsState(listOf(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.READ_PHONE_STATE,
-        Manifest.permission.ACCESS_BACKGROUND_LOCATION
-    ))
+    // Track which permission we're currently requesting
+    var currentPermissionIndex by remember { mutableIntStateOf(0) }
 
-    when {
-        permissionState.allPermissionsGranted -> {
-            onPermissionsGranted()
-        }
-        permissionState.shouldShowRationale || !permissionState.allPermissionsGranted -> {
-            PermissionDeniedContent(
-                onRequestPermission = { permissionState.launchMultiplePermissionRequest() },
-                onOpenSettings = {
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.fromParts("package", context.packageName, null)
-                    }
-                    context.startActivity(intent)
+    // List of permissions and their requirements
+    val permissions = remember {
+        listOf(
+            phoneStatePermission to "Phone State",
+            notificationPermission to "Notifications",
+            locationPermission to "Location",
+            bgLocationPermission to "Background Location"
+        )
+    }
+
+    // Function to request the next permission
+    val requestNextPermission = {
+        when (currentPermissionIndex) {
+            0 -> phoneStatePermission.launchPermissionRequest()
+            1 -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    notificationPermission.launchPermissionRequest()
+                } else {
+                    currentPermissionIndex++
+                    locationPermission.launchPermissionRequest()
                 }
-            )
-        }
-        else -> {
-            SideEffect {
-                permissionState.launchMultiplePermissionRequest()
+            }
+            2 -> locationPermission.launchPermissionRequest()
+            3 -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    bgLocationPermission.launchPermissionRequest()
+                } else {
+                    currentPermissionIndex++
+                }
             }
         }
     }
 
-    if (showRationale) {
-        RationaleDialog(
-            onDismiss = { showRationale = false },
-            onConfirm = {
-                showRationale = false
-                permissionState.launchMultiplePermissionRequest()
-            }
-        )
+    // Check if all required permissions are granted
+    val allPermissionsGranted = remember(
+        phoneStatePermission.status,
+        notificationPermission.status,
+        locationPermission.status,
+        bgLocationPermission.status
+    ) {
+        phoneStatePermission.status.isGranted &&
+                (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || notificationPermission.status.isGranted) &&
+                locationPermission.status.isGranted &&
+                (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || bgLocationPermission.status.isGranted)
+    }
+
+    LaunchedEffect(
+        phoneStatePermission.status,
+        notificationPermission.status,
+        locationPermission.status,
+        bgLocationPermission.status
+    ) {
+        when (currentPermissionIndex) {
+            0 -> if (phoneStatePermission.status.isGranted) currentPermissionIndex++
+            1 -> if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                notificationPermission.status.isGranted) currentPermissionIndex++
+            2 -> if (locationPermission.status.isGranted) currentPermissionIndex++
+            3 -> if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                bgLocationPermission.status.isGranted) currentPermissionIndex++
+        }
+    }
+
+    when {
+        allPermissionsGranted -> {
+            CellInfoDisplay()
+        }
+        else -> {
+            PermissionScreen(
+                currentPermission = permissions[currentPermissionIndex].second,
+                onRequestPermission = requestNextPermission
+            )
+        }
     }
 }
 
 @Composable
-fun PermissionDeniedContent(
-    onRequestPermission: () -> Unit,
-    onOpenSettings: () -> Unit
+fun PermissionScreen(
+    currentPermission: String,
+    onRequestPermission: () -> Unit
 ) {
+    val context = LocalContext.current
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.sad_dog), // Make sure to add this image to your drawable resources
+            painter = painterResource(id = R.drawable.sad_dog),
             contentDescription = "Sad dog",
             modifier = Modifier.size(200.dp)
         )
+
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "Oh no! We're feeling a bit lost without those permissions.",
+            text = "We need $currentPermission permission to access cell information and show notifications",
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(bottom = 16.dp)
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "Please help us find our way by granting the permissions we need.",
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+
         Button(onClick = onRequestPermission) {
-            Text("Grant Permissions")
+            Text("Grant Permission")
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        TextButton(onClick = onOpenSettings) {
+        Spacer(modifier = Modifier.height(16.dp))
+        TextButton(
+            onClick = {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                    context.startActivity(this)
+                }
+            }
+        ) {
             Text("Open Settings")
         }
     }
 }
-@Composable
-fun RationaleDialog(
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Permissions Required") },
-        text = { Text("This app requires location and phone state permissions to function properly. Please grant the permissions to continue.") },
-        confirmButton = {
-            Button(onClick = onConfirm) {
-                Text("OK")
-            }
-        },
-        dismissButton = {
-            Button(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -309,66 +217,61 @@ fun CellInfoDisplay() {
     logD(TAG, "CellInfoDisplay: Composable function called")
     val context = LocalContext.current
     var cellDataJson by remember { mutableStateOf("{}") }
-    var isLoadingGPS by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var showModal by remember { mutableStateOf(false) }
+    var savedData by remember { mutableStateOf<Map<String, Any>>(emptyMap()) }
+    val sheetState = rememberModalBottomSheetState()
+
+
+    val database = Database("cell_tower_logs")
+
+    fun showSavedData() {
+        savedData = database.getAll()
+        showModal = true
+    }
+
+
 
     fun updateCellInfo() {
-        logD(TAG, "updateCellInfo: Started")
         val cellInfoWrapper = CellInfoWrapper(context)
-        val cellData = cellInfoWrapper.getCellInfo()
-
-        isLoadingGPS = true
-        LocationWrapper(context).getLocation { location ->
-            logD(TAG, "updateCellInfo: Location received - Lat: ${location.latitude}, Lon: ${location.longitude}")
-            cellData.longitude = location.longitude.toString()
-            cellData.latitude = location.latitude.toString()
-            cellDataJson = cellData.toJson()
-            isLoadingGPS = false
-        }
-
-        cellDataJson = cellData.toJson()
-        logD(TAG, "updateCellInfo: Completed")
-    }
-
-    fun copyJsonToClipboard() {
-        logD(TAG, "copyJsonToClipboard: Copying JSON to clipboard")
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Cell Info JSON", cellDataJson)
-        clipboard.setPrimaryClip(clip)
-        Toast.makeText(context, "JSON copied to clipboard", Toast.LENGTH_SHORT).show()
-    }
-
-    fun copyLogs() {
-        logD(TAG, "copyLogs: Copying logs to clipboard")
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Logs", LogCollector.getLogs())
-        clipboard.setPrimaryClip(clip)
-        Toast.makeText(context, "Logs copied to clipboard", Toast.LENGTH_SHORT).show()
-    }
-    fun showSavedData() {
-
-    }
-
-    fun saveData() {
-        logD(TAG, "saveData: Saving data")
-
-        Toast.makeText(context, "Data saved", Toast.LENGTH_SHORT).show()
+        cellDataJson = cellInfoWrapper.getCellInfo().toJson()
     }
 
     LaunchedEffect(Unit) {
-        logD(TAG, "CellInfoDisplay: LaunchedEffect triggered")
         updateCellInfo()
     }
+
+
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Cell Information") },
                 actions = {
-                    IconButton(onClick = {
-                        logD(TAG, "CellInfoDisplay: Refresh button clicked")
-                        updateCellInfo()
-                    }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    IconButton(onClick = { updateCellInfo() }) {
+
+                        Icon(
+                            modifier = Modifier
+                                .width(15.dp)
+                                .height(15.dp),
+                            type = SR.drawable.fi_br_rotate_right,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { (context as? AppCompatActivity)?.finish() }) {
+
+                        Icon(
+                            modifier = Modifier
+                                .width(15.dp)
+                                .height(15.dp),
+                            type = SR.drawable.fi_br_angle_left,
+                            color = MaterialTheme.colorScheme.primary
+
+                        )
+
                     }
                 }
             )
@@ -382,10 +285,27 @@ fun CellInfoDisplay() {
                 .verticalScroll(rememberScrollState())
         ) {
             val cellData = remember(cellDataJson) {
-                JSONObject(cellDataJson).also {
-                    logD(TAG, "CellInfoDisplay: Parsed JSON - $it")
-                }
+                JSONObject(cellDataJson)
             }
+            SwitchListTile(
+                title = "Contribute cell id's to Rail",
+                subtitle = "We need your help to improve Rail",
+                isChecked = isServiceEnabled(),
+                onCheckedChange = { enabled ->
+                    isLoading = true
+                    PreferenceManager.setServiceEnabled(enabled = enabled)
+                    context.handleServiceState(enabled)
+                    isLoading = false
+                }
+            )
+
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            }
+
+
+            Spacer(modifier = Modifier.height(16.dp))
+
 
             CellInfoCard(
                 title = "Network Information",
@@ -412,60 +332,56 @@ fun CellInfoDisplay() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            CellInfoCard(
-                title = "Location",
-                content = {
-                    if (isLoadingGPS) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally), strokeCap = StrokeCap.Round)
-                    } else {
-                        InfoRow("Longitude", cellData.optString("longitude", "N/A"))
-                        InfoRow("Latitude", cellData.optString("latitude", "N/A"))
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             Button(
                 onClick = {
-                    logD(TAG, "CellInfoDisplay: Copy JSON button clicked")
-                    copyJsonToClipboard()
+                    (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).apply {
+                        setPrimaryClip(ClipData.newPlainText("Cell Info JSON", cellDataJson))
+                        Toast.makeText(context, "JSON copied to clipboard", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Copy JSON")
             }
+
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    logD(TAG, "Copy logs button clicked")
-                    copyLogs()
-                },
-                modifier = Modifier.fillMaxWidth()
+            if (showModal) {
+            ModalBottomSheet(
+                onDismissRequest = { showModal = false },
+                sheetState = sheetState,
             ) {
-                Text("Copy Logs")
-            }
-            Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    savedData.forEach { (key, value) ->
+                        Text("$key: $value")
+                    }
+                }
+            }}
+
+
+
             Button(
                 onClick = {
-                    logD(TAG, "Show Saved Data button clicked")
                     showSavedData()
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Show saved data")
+                Text("Show Saved/Contributed Data")
             }
-
         }
     }
+
 }
 
 @Composable
 fun CellInfoCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    logD(TAG, "CellInfoCard: Rendering card with title - $title")
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(23.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -482,7 +398,6 @@ fun CellInfoCard(title: String, content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 fun InfoRow(label: String, value: String) {
-    logD(TAG, "InfoRow: $label - $value")
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -491,94 +406,5 @@ fun InfoRow(label: String, value: String) {
     ) {
         Text(text = label, color = Color.Gray)
         Text(text = value, fontWeight = FontWeight.Medium)
-    }
-}
-
-class CellInfoWrapper(private val context: Context) {
-    @SuppressLint("MissingPermission")
-    fun getCellInfo(): CellData {
-        logD(TAG, "getCellInfo: Started")
-        val cellData = CellData()
-        val netMonster = NetMonsterFactory.get(context)
-
-        val cells = netMonster.getCells()
-        logD(TAG, "getCellInfo: All cells - $cells")
-        val servingCell = cells.firstOrNull { it.connectionStatus is PrimaryConnection }
-        logD(TAG, "getCellInfo: Serving cell - $servingCell")
-
-        servingCell?.let { cell ->
-            when (cell) {
-                is CellGsm -> {
-                    logD(TAG, "getCellInfo: GSM cell detected")
-                    cellData.mcc = cell.network?.mcc ?: ""
-                    cellData.mnc = cell.network?.mnc ?: ""
-                    cellData.lac = cell.lac.toString()
-                    cellData.cid = cell.cid.toString()
-                    cellData.gsmSignal = "${cell.signal.rssi} dBm"
-                }
-                is CellWcdma -> {
-                    logD(TAG, "getCellInfo: WCDMA cell detected")
-                    cellData.mcc = cell.network?.mcc ?: ""
-                    cellData.mnc = cell.network?.mnc ?: ""
-                    cellData.lac = cell.lac.toString()
-                    cellData.cid = cell.ci.toString()
-                    cellData.wcdmaSignal = "${cell.signal.rscp} dBm"
-                }
-                is CellLte -> {
-                    logD(TAG, "getCellInfo: LTE cell detected")
-                    cellData.mcc = cell.network?.mcc ?: ""
-                    cellData.mnc = cell.network?.mnc ?: ""
-                    cellData.lac = cell.tac.toString()
-                    cellData.cid = cell.eci.toString()
-                    cellData.lteSignal = "${cell.signal.rsrp} dBm"
-                }
-                is CellNr -> {
-                    logD(TAG, "getCellInfo: NR cell detected")
-                    cellData.mcc = cell.network?.mcc ?: ""
-                    cellData.mnc = cell.network?.mnc ?: ""
-                    cellData.lac = cell.tac.toString()
-                    cellData.cid = cell.nci.toString()
-                    cellData.nrSignal = "${cell.signal.ssRsrp} dBm"
-                }
-                is CellTdscdma -> {
-                    logD(TAG, "getCellInfo: TD-SCDMA cell detected")
-                    cellData.mcc = cell.network?.mcc ?: ""
-                    cellData.mnc = cell.network?.mnc ?: ""
-                    cellData.lac = cell.lac.toString()
-                    cellData.cid = cell.ci.toString()
-                    cellData.tdscdmaSignal = "${cell.signal.rscp} dBm"
-                }
-            }
-        }
-
-        logD(TAG, "getCellInfo: Completed - $cellData")
-        return cellData
-    }
-}
-
-class LocationWrapper(private val context: Context) {
-    @SuppressLint("MissingPermission")
-    fun getLocation(callback: (Location) -> Unit) {
-        logD(TAG, "getLocation: Started")
-        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val locationListener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
-                logD(TAG, "getLocation: Location changed - Lat: ${location.latitude}, Lon: ${location.longitude}")
-                callback(location)
-                locationManager.removeUpdates(this)
-            }
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
-                logD(TAG, "getLocation: Status changed - Provider: $provider, Status: $status")
-            }
-            override fun onProviderEnabled(provider: String) {
-                logD(TAG, "getLocation: Provider enabled - $provider")
-            }
-            override fun onProviderDisabled(provider: String) {
-                logD(TAG, "getLocation: Provider disabled - $provider")
-            }
-        }
-
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, locationListener)
-        logD(TAG, "getLocation: Location updates requested")
     }
 }

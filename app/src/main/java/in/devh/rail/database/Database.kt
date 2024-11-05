@@ -26,10 +26,20 @@ class Database(private val databaseName: String) {
         return data[key.toString()] ?: default
     }
 
-    fun <T> set(key: Any, value: T?) {
+    fun <T> getAll(): Map<String, T> {
+        val json = file.readText()
+        val type = object : TypeToken<Map<String, T>>() {}.type
+        return gson.fromJson(json, type) ?: emptyMap()
+    }
+
+    fun <T> set(key: Any, value: T?, allowDuplicates: Boolean = true) {
         val json = file.readText()
         val type = object : TypeToken<MutableMap<String, Any>>() {}.type
         val data: MutableMap<String, Any> = gson.fromJson(json, type) ?: mutableMapOf()
+        if (data.containsKey(key.toString())) {
+            if (!allowDuplicates)
+            return
+        }
 
         if (value == null) {
             data.remove(key.toString())

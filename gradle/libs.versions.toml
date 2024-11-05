@@ -17,7 +17,6 @@ composeBom = "2024.04.01"
 materialIconsExtended = "1.7.3"
 materialIconsExtendedVersion = "1.4.3"
 navigationCompose = "2.8.2"
-objectboxKotlin = "4.0.2"
 oneui6Material3DynamicColorCompose = "0.1.1"
 converterGson = "2.9.0"
 lifecycleRuntimeKtxVersion = "2.4.0"
@@ -59,7 +58,6 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 netmonster-core = { module = "app.netmonster:core", name = "netmonster", version.ref = "netmonster"}
-objectbox-kotlin = { module = "io.objectbox:objectbox-kotlin", version.ref = "objectboxKotlin" }
 oneui6-material3-dynamic-color-compose = { module = "com.github.long5436:oneui6-material3-dynamic-color-compose", version.ref = "oneui6Material3DynamicColorCompose" }
 converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }

@@ -3,6 +3,9 @@ import android.content.Context
 import android.content.SharedPreferences
 
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 object AppContextProvider {
     private lateinit var appContext: Context
@@ -49,13 +52,15 @@ data class LogsData(
     }
 
     fun writeLog(tag: String, message: String) {
+        val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         if (logFile == null) {
             initializeLogFile()
         }
         println("$tag : $message")
         println("Log file path : ${getLogFilePath()}")
         println("Log file exists : ${logFile?.exists()}")
-        logFile?.appendText("$tag : $message\n")
+        logFile?.appendText("$dateStr $timeStr - $tag : $message\n")
     }
 
     fun readLog(): String {

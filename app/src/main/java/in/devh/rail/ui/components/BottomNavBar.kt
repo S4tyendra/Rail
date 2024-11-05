@@ -21,7 +21,7 @@ fun BottomNavBar(
         modifier = Modifier
             .graphicsLayer {
                 shadowElevation = 8.dp.toPx()
-                shape = RoundedCornerShape(25.dp)
+                shape = RoundedCornerShape(23.dp)
                 clip = true
 
             },
