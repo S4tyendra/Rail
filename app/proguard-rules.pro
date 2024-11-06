@@ -30,3 +30,12 @@
 -dontwarn org.openjsse.javax.net.ssl.SSLParameters
 -dontwarn org.openjsse.javax.net.ssl.SSLSocket
 -dontwarn org.openjsse.net.ssl.OpenJSSE
+
+# Preserve GSON classes
+-keep class com.google.gson.** { *; }
+-dontwarn com.google.gson.**
+
+# Preserve model classes used by GSON
+-keep class in.devh.rail.models.** { *; }
+-keep class in.devh.rail.database.** { *; }
+-keep class in.devh.rail.services.** { *; }

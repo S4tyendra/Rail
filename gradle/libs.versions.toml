@@ -1,10 +1,10 @@
 [versions]
 accompanistPermissions = "0.36.0"
-agp = "8.7.1"
+agp = "8.7.2"
 core = "0.9.1"
 datastorePreferences = "1.1.1"
 feather = "1.1.0"
-gradle = "8.1.0"
+gradle = "8.7.2"
 iconscompose = "0.0.1"
 kotlin = "2.0.0"
 coreKtx = "1.10.1"

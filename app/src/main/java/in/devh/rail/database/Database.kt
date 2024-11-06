@@ -4,6 +4,7 @@ import `in`.devh.rail.data.models.AppContextProvider
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.io.File
+import android.util.Log // For Android logging
 
 class Database(private val databaseName: String) {
     private val context = AppContextProvider.getAppContext()
@@ -14,40 +15,57 @@ class Database(private val databaseName: String) {
         val dir = context.filesDir
         file = File(dir, "$databaseName.json")
         if (!file.exists()) {
-            file.createNewFile()
-            file.writeText("{}")
+            try {
+                file.createNewFile()
+                file.writeText("{}")
+            } catch (e: Exception) {
+                Log.e("Database", "Error creating file: ${e.message}")
+            }
         }
     }
 
     inline fun <reified T> get(key: Any, default: T? = null): T? {
-        val json = file.readText()
-        val type = object : TypeToken<Map<String, T>>() {}.type
-        val data: Map<String, T> = gson.fromJson(json, type) ?: emptyMap()
-        return data[key.toString()] ?: default
+        return try {
+            val json = file.readText()
+            val type = object : TypeToken<Map<String, T>>() {}.type
+            val data: Map<String, T> = gson.fromJson(json, type) ?: emptyMap()
+            data[key.toString()] ?: default
+        } catch (e: Exception) {
+            Log.e("Database", "Error reading key $key: ${e.message}")
+            default
+        }
     }
 
     fun <T> getAll(): Map<String, T> {
-        val json = file.readText()
-        val type = object : TypeToken<Map<String, T>>() {}.type
-        return gson.fromJson(json, type) ?: emptyMap()
+        return try {
+            val json = file.readText()
+            val type = object : TypeToken<Map<String, T>>() {}.type
+            gson.fromJson(json, type) ?: emptyMap()
+        } catch (e: Exception) {
+            Log.e("Database", "Error reading all data: ${e.message}")
+            emptyMap()
+        }
     }
 
     fun <T> set(key: Any, value: T?, allowDuplicates: Boolean = true) {
-        val json = file.readText()
-        val type = object : TypeToken<MutableMap<String, Any>>() {}.type
-        val data: MutableMap<String, Any> = gson.fromJson(json, type) ?: mutableMapOf()
-        if (data.containsKey(key.toString())) {
-            if (!allowDuplicates)
-            return
-        }
+        try {
+            val json = file.readText()
+            val type = object : TypeToken<MutableMap<String, Any>>() {}.type
+            val data: MutableMap<String, Any> = gson.fromJson(json, type) ?: mutableMapOf()
+            if (data.containsKey(key.toString()) && !allowDuplicates) {
+                return
+            }
 
-        if (value == null) {
-            data.remove(key.toString())
-        } else {
-            data[key.toString()] = value
-        }
+            if (value == null) {
+                data.remove(key.toString())
+            } else {
+                data[key.toString()] = value
+            }
 
-        file.writeText(gson.toJson(data))
+            file.writeText(gson.toJson(data))
+        } catch (e: Exception) {
+            Log.e("Database", "Error setting key $key: ${e.message}")
+        }
     }
 
     fun remove(key: Any) {
@@ -55,6 +73,10 @@ class Database(private val databaseName: String) {
     }
 
     fun clear() {
-        file.writeText("{}")
+        try {
+            file.writeText("{}")
+        } catch (e: Exception) {
+            Log.e("Database", "Error clearing database: ${e.message}")
+        }
     }
 }
