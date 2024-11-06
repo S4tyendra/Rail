@@ -9,6 +9,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import `in`.devh.rail.CellTower
 import com.slaviboy.iconscompose.R
+import fetchCoordinates
 import `in`.devh.rail.database.Database
 import `in`.devh.rail.functions.Logs.logD
 import `in`.devh.rail.wrappers.CellInfoWrapper
@@ -49,18 +50,46 @@ class CellUpdateService : Service() {
         startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         val database = Database("cell_tower_logs")
 
+        // Cancel existing job if any
         updateJob?.cancel()
+
+        // Start new job in serviceScope
         updateJob = serviceScope.launch {
             while (isActive) {
-                val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-                val cellInfoWrapper = CellInfoWrapper(context)
-                val cellData = cellInfoWrapper.getCellInfo()
-                val cellDataStr = "${cellData.mcc}_${cellData.mnc}_${cellData.lac}_${cellData.cid}"
-                val dataToInsert = mapOf(cellDataStr to false)
-                database.set(cellDataStr, dataToInsert[cellDataStr])
-                val updatedNotification = createNotification("Last updated at: $timeStr\nCell Data: $cellDataStr")
-                startForeground(NOTIFICATION_ID, updatedNotification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-                delay(60000)
+                try {
+                    val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+                    val cellInfoWrapper = CellInfoWrapper(context)
+                    val cellData = cellInfoWrapper.getCellInfo()
+                    val cellDataStr = "${cellData.mcc}_${cellData.mnc}_${cellData.lac}_${cellData.cid}"
+
+                    // Only insert if it doesn't exist or is true (to avoid duplicate false entries)
+                    val existingValue = database.get<Boolean>(cellDataStr)
+                    if (existingValue == null || existingValue == true) {
+                        database.set(cellDataStr, false)
+                    }
+
+                    // Update notification
+                    val updatedNotification = createNotification(
+                        "Last updated at: $timeStr\nCell Data: $cellDataStr"
+                    )
+                    startForeground(
+                        NOTIFICATION_ID,
+                        updatedNotification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                    )
+
+                    // Launch fetchCoordinates in IO dispatcher but with a timeout
+                    withTimeoutOrNull(4000) { // 4 seconds timeout
+                        withContext(Dispatchers.IO) {
+                            fetchCoordinates()
+                        }
+                    }
+
+                    delay(5000)
+                } catch (e: Exception) {
+                    logD("ForegroundService", "Error in service loop: ${e.message}")
+                    delay(5000) // Still delay on error to avoid rapid retries
+                }
             }
         }
     }
@@ -91,15 +120,22 @@ class CellUpdateService : Service() {
         )
 
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("Rail Contributor service")
-            .setContentText(content)
-            .setSmallIcon(R.drawable.fi_br_bell)
+            .setContentTitle("Rail service active")
+            // Show minimal info in collapsed state
+            .setContentText("Tracking cell towers...")
+            .setSmallIcon(R.drawable.fi_rr_train)
             .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(content))
+            .setPriority(NotificationCompat.PRIORITY_MIN)  // Use MIN priority to encourage collapse
+            // Only show full content in expanded state
+            .setStyle(NotificationCompat.BigTextStyle()
+                .setBigContentTitle("Rail service")
+                .bigText(content)
+                .setSummaryText("Cell tower tracking active"))
             .setOngoing(true)
             .setContentIntent(pendingIntent)
+            .setAutoCancel(false)
             .build()
+
     }
 
     override fun onDestroy() {

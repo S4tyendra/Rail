@@ -32,10 +32,6 @@
             android:name=".services.CellUpdateService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
-        <service android:name=".services.LogcatService"
-            android:foregroundServiceType="dataSync"
-            android:exported="false"
-            />
         <activity
             android:name=".SettingsActivity"
             android:theme="@style/Theme.AppCompat.NoActionBar"

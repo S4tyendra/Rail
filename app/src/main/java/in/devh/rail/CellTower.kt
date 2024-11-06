@@ -47,6 +47,8 @@ import com.slaviboy.iconscompose.Icon
 import `in`.devh.rail.database.Database
 import com.slaviboy.iconscompose.R as SR
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.tooling.preview.Preview
+
 private const val TAG = "CellTower"
 
 @RequiresApi(Build.VERSION_CODES.Q)
@@ -408,3 +410,4 @@ fun InfoRow(label: String, value: String) {
         Text(text = value, fontWeight = FontWeight.Medium)
     }
 }
+
