@@ -44,10 +44,13 @@ import `in`.devh.rail.utils.PermissionHandler
 import `in`.devh.rail.utils.PreferenceManager
 import `in`.devh.rail.utils.PreferenceManager.isServiceEnabled
 import com.slaviboy.iconscompose.Icon
-import `in`.devh.rail.database.Database
 import com.slaviboy.iconscompose.R as SR
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.ui.tooling.preview.Preview
+import `in`.devh.rail.database.CellDataDB
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.dp
 
 private const val TAG = "CellTower"
 
@@ -57,9 +60,10 @@ class CellTower : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        LogCollector.clearLogs()
         logD(TAG, "CellTower: onCreate")
-//        supportActionBar?.hide()
+        val db = CellDataDB()
+        db.init()
+
 
         cellInfoWrapper = CellInfoWrapper(this)
         if (isServiceEnabled(this) &&
@@ -70,7 +74,7 @@ class CellTower : AppCompatActivity() {
             RailTheme(dynamicColor = true) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.primaryContainer
+                    color = MaterialTheme.colorScheme.background
 
                 ) {
                     MainContent()
@@ -221,14 +225,14 @@ fun CellInfoDisplay() {
     var cellDataJson by remember { mutableStateOf("{}") }
     var isLoading by remember { mutableStateOf(false) }
     var showModal by remember { mutableStateOf(false) }
-    var savedData by remember { mutableStateOf<Map<String, Any>>(emptyMap()) }
+    var savedData by remember { mutableStateOf<List<String>>(arrayListOf()) }
     val sheetState = rememberModalBottomSheetState()
 
 
-    val database = Database("cell_tower_logs")
+    val db = CellDataDB()
 
     fun showSavedData() {
-        savedData = database.getAll()
+        savedData = db.getAll()
         showModal = true
     }
 
@@ -358,10 +362,60 @@ fun CellInfoDisplay() {
                         .padding(16.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    savedData.forEach { (key, value) ->
-                        Text("$key: $value")
+                    Text("Saved/Contributed Data", style = MaterialTheme.typography.titleMedium, modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp), fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (savedData.isEmpty()) {
+                        Text("No saved data found")
+                    } else {
+                        savedData.forEach {
+                            val json = JSONObject(it)
+                            val key = json.keys().next() // Get the first (and only) key
+                            val value = json.getBoolean(key)
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = key)
+                                Text(
+                                    text = if (value) "✓" else "✗",
+                                    color = if (value) Color.Green else Color.Red
+                                )
+                            }
+                            HorizontalDivider()
+                        }
                     }
                 }
+//                LazyColumn (
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .padding(16.dp)
+//                        .verticalScroll(rememberScrollState())
+//                ) {
+//                    items(savedData) { jsonString ->
+//                        val json = JSONObject(jsonString)
+//                        val key = json.keys().next() // Get the first (and only) key
+//                        val value = json.getBoolean(key)
+//
+//                        Row(
+//                            modifier = Modifier
+//                                .fillMaxWidth()
+//                                .padding(8.dp),
+//                            horizontalArrangement = Arrangement.SpaceBetween
+//                        ) {
+//                            Text(text = key)
+//                            Text(
+//                                text = if (value) "✓" else "✗",
+//                                color = if (value) Color.Green else Color.Red
+//                            )
+//                        }
+//
+//                    }
+//                }
             }}
 
 

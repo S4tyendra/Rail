@@ -10,7 +10,7 @@ import androidx.core.app.NotificationCompat
 import `in`.devh.rail.CellTower
 import com.slaviboy.iconscompose.R
 import fetchCoordinates
-import `in`.devh.rail.database.Database
+import `in`.devh.rail.database.CellDataDB
 import `in`.devh.rail.functions.Logs.logD
 import `in`.devh.rail.wrappers.CellInfoWrapper
 import java.text.SimpleDateFormat
@@ -21,7 +21,7 @@ class CellUpdateService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
     private var updateJob: Job? = null
     private val context: Context
-        get() = this
+        get() = applicationContext
 
 
     companion object {
@@ -43,12 +43,12 @@ class CellUpdateService : Service() {
         }
         return START_STICKY
     }
-
     @SuppressLint("NewApi")
     private fun startForegroundService() {
         val notification = createNotification("Starting cell updates...")
         startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        val database = Database("cell_tower_logs")
+        val db = CellDataDB()
+
 
         // Cancel existing job if any
         updateJob?.cancel()
@@ -61,12 +61,7 @@ class CellUpdateService : Service() {
                     val cellInfoWrapper = CellInfoWrapper(context)
                     val cellData = cellInfoWrapper.getCellInfo()
                     val cellDataStr = "${cellData.mcc}_${cellData.mnc}_${cellData.lac}_${cellData.cid}"
-
-                    // Only insert if it doesn't exist or is true (to avoid duplicate false entries)
-                    val existingValue = database.get<Boolean>(cellDataStr)
-                    if (existingValue == null || existingValue == true) {
-                        database.set(cellDataStr, false)
-                    }
+                    db.store(cellData.mcc, cellData.mnc, cellData.lac, cellData.cid)
 
                     // Update notification
                     val updatedNotification = createNotification(
@@ -85,7 +80,7 @@ class CellUpdateService : Service() {
                         }
                     }
 
-                    delay(5000)
+                    delay(60000)
                 } catch (e: Exception) {
                     logD("ForegroundService", "Error in service loop: ${e.message}")
                     delay(5000) // Still delay on error to avoid rapid retries
@@ -93,6 +88,7 @@ class CellUpdateService : Service() {
             }
         }
     }
+
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
@@ -103,11 +99,16 @@ class CellUpdateService : Service() {
             description = "Shows ongoing cell information updates"
         }
 
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
     }
 
-    private fun createNotification(content: String): Notification {
+    private fun createNotification(
+        content: String,
+        showProgress: Boolean = false,
+        progress: Int = 0,
+        maxProgress: Int = 0
+    ): Notification {
         val intent = Intent(this, CellTower::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -119,24 +120,27 @@ class CellUpdateService : Service() {
             PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("Rail service active")
-            // Show minimal info in collapsed state
-            .setContentText("Tracking cell towers...")
+        val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+            .setContentTitle("Rail service")
+            .setContentText("Tower tracking service active.") // Short text for collapsed view
             .setSmallIcon(R.drawable.fi_rr_train)
             .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_MIN)  // Use MIN priority to encourage collapse
-            // Only show full content in expanded state
+            .setPriority(NotificationCompat.PRIORITY_MIN)
             .setStyle(NotificationCompat.BigTextStyle()
                 .setBigContentTitle("Rail service")
-                .bigText(content)
+                .bigText(content)  // Full content for expanded view
                 .setSummaryText("Cell tower tracking active"))
             .setOngoing(true)
             .setContentIntent(pendingIntent)
             .setAutoCancel(false)
-            .build()
 
+        if (showProgress && maxProgress > 0) {
+            builder.setProgress(maxProgress, progress, false)
+        }
+
+        return builder.build()
     }
+
 
     override fun onDestroy() {
         super.onDestroy()

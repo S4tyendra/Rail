@@ -1,5 +1,5 @@
 import android.util.Log
-import `in`.devh.rail.database.Database
+import `in`.devh.rail.database.CellDataDB
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -16,13 +16,11 @@ suspend fun fetchCoordinates() {
         .writeTimeout(3, TimeUnit.SECONDS)
         .build()
 
-    val database = Database("cell_tower_logs")
-    val savedData: Map<String, Any> = database.getAll()
+    val db = CellDataDB()
+    // Get all cell IDs that have false value
+    val pendingItems = db.getFalse()
 
-    // Filter items with false values and convert to list
-    val pendingItems = savedData.filter { it.value == false }.keys.toList()
-
-    // Process items concurrently but with a limit
+    // Process items concurrently with a limit
     coroutineScope {
         pendingItems.map { cellInfo ->
             async {
@@ -34,7 +32,8 @@ suspend fun fetchCoordinates() {
                     withContext(Dispatchers.IO) {
                         client.newCall(request).execute().use { response ->
                             if (response.isSuccessful) {
-                                database.set(cellInfo, true)
+                                // Update the value to true if request was successful
+                                db.setTrue(cellInfo)
                                 Log.d("FetchCoordinates", "Successfully processed $cellInfo")
                             } else {
                                 Log.w("FetchCoordinates", "Failed to fetch coordinates for $cellInfo: ${response.code}")
