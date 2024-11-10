@@ -1,19 +1,18 @@
 package `in`.devh.rail
 
-import android.content.Intent
+import android.content.SharedPreferences
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.tooling.preview.Preview
-import `in`.devh.rail.ui.theme.RailTheme
-import android.content.SharedPreferences
-import android.os.Build
-import androidx.annotation.RequiresApi
 import `in`.devh.rail.data.models.AppContextProvider
 import `in`.devh.rail.data.models.LogsData
 import `in`.devh.rail.pages.TrainApp
+import `in`.devh.rail.ui.theme.RailTheme
 
 
 class MainActivity : ComponentActivity() {

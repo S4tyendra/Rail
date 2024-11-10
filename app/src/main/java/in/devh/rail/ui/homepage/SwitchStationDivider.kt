@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.slaviboy.iconscompose.Icon
@@ -22,6 +23,7 @@ import com.slaviboy.iconscompose.R
 @Composable
 fun SwitchStationDivider(
     onSwitchClick: () -> Unit,
+    rotation: Float,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -35,14 +37,17 @@ fun SwitchStationDivider(
         )
 
         IconButton(
-            colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            colors = IconButtonDefaults.iconButtonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            ),
             onClick = onSwitchClick,
-            modifier = Modifier.border(
-                BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant),
-                MaterialTheme.shapes.extraLarge
-            )
+            modifier = Modifier
+                .border(
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant),
+                    MaterialTheme.shapes.extraLarge
+                )
+                .rotate(rotation)  // Apply rotation animation
         ) {
-
             Icon(
                 contentScale = ContentScale.FillHeight,
                 modifier = Modifier
@@ -51,7 +56,6 @@ fun SwitchStationDivider(
                 type = R.drawable.fi_br_sort_alt,
                 color = MaterialTheme.colorScheme.primary
             )
-
         }
 
         HorizontalDivider(

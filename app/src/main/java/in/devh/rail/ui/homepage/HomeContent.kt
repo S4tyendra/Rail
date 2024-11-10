@@ -1,9 +1,9 @@
 package `in`.devh.rail.ui.homepage
 
+import android.annotation.SuppressLint
+import android.content.Context.MODE_PRIVATE
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,36 +14,73 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.slaviboy.iconscompose.Icon
 import com.slaviboy.iconscompose.R
+import `in`.devh.rail.pages.LocalNavController
+import `in`.devh.rail.ui.components.homepage.StationSearchDialog
+import `in`.devh.rail.ui.theme.RailTheme
 
 
+@SuppressLint("CommitPrefEdits")
 @Composable
-fun HomeContent(
-    innerPadding: PaddingValues = PaddingValues(0.dp)
-) {
+fun HomeContent() {
+    val context = LocalContext.current
+    val sharedPreferences = context.getSharedPreferences("search_trains", MODE_PRIVATE)
+
+    val from = remember { mutableStateOf(sharedPreferences.getString("from", "MAS|Chennai Central") ?: "MAS|Chennai Central") }
+    val to = remember { mutableStateOf(sharedPreferences.getString("to", "SBC|KSR Bengaluru City Junction") ?: "SBC|KSR Bengaluru City Junction") }
+    var showSearchDialog = remember { mutableStateOf(false) }
+    var isSearchingFrom = remember { mutableStateOf(false) }
+
+    val navController = LocalNavController.current
+
+
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
 
-
         Spacer(modifier = Modifier.height(16.dp))
 
         // From-To Section
         StationCard(
-            fromStation = Station("MAS", "Chennai Central"),
-            toStation = Station("SBC", "KSR Bengaluru City Junction")
+            fromStation = Station(from.value.split("|")[1], from.value.split("|")[0]),
+            toStation = Station(to.value.split("|")[1], to.value.split("|")[0]),
+            onSwitchClick = {
+                sharedPreferences.edit().apply {
+                    putString("from", "${to.value.split("|")[0]}|${to.value.split("|")[1]}")
+                    putString("to", "${from.value.split("|")[0]}|${from.value.split("|")[1]}")
+                    apply()
+                }
+                from.value = sharedPreferences.getString("from", "MAS|Chennai Central") ?: "MAS|Chennai Central"
+                to.value = sharedPreferences.getString("to", "SBC|KSR Bengaluru City Junction") ?: "SBC|KSR Bengaluru City Junction"
+            },
+            onToSelect = {
+                isSearchingFrom.value = false
+                showSearchDialog.value = true
+            },
+            onFromSelect = {
+                isSearchingFrom.value = true
+                showSearchDialog.value = true
+            }
         )
+
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Find Trains Button
         Button(
-            onClick = { /* Handle find trains */ },
+            onClick = {
+                navController.navigate("find_trains")
+            },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors()
         ) {
@@ -80,5 +117,33 @@ fun HomeContent(
             )
         )
     }
+    if (showSearchDialog.value) {
+        StationSearchDialog(
+            isVisible = showSearchDialog.value,
+            onDismiss = {
+                showSearchDialog.value = false
+            },
+            onStationSelected = { station ->
+                if (isSearchingFrom.value) {
+                    // Update "from" station
+                    val newValue = "${station.code}|${station.name}"
+                    sharedPreferences.edit().putString("from", newValue).apply()
+                    from.value = newValue
+                } else {
+                    // Update "to" station
+                    val newValue = "${station.code}|${station.name}"
+                    sharedPreferences.edit().putString("to", newValue).apply()
+                    to.value = newValue
+                }
+                showSearchDialog.value = false
+            }
+        )
+    }
+
 }
 
+@Preview(showBackground = true)
+@Composable
+fun HomeContentPreview() {
+    RailTheme { HomeContent() }
+}

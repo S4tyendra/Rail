@@ -58,6 +58,17 @@ fun DrawerContent(navController: NavHostController) {
                 context.startActivity(intent)
             }
         )
+        HorizontalDivider()
+        NavigationDrawerItem(
+            label = { Text("Clear all shared preferences data") },
+            selected = false,
+            onClick = {
+                logD(TAG, "Clearing all shared preferences data")
+                val context = AppContextProvider.getAppContext()
+                val sharedPref = context.getSharedPreferences("search_trains", 0)
+                sharedPref.edit().clear().apply()
+            }
+        )
     }
 }
 

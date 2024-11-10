@@ -68,5 +68,5 @@ fun TrainListItem(train: Train) {
     }
 }
 
-data class Station(val code: String, val name: String)
+data class Station(val name: String, val code: String)
 data class Train(val number: String, val name: String, val route: String = "")

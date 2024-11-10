@@ -8,6 +8,8 @@ import androidx.compose.animation.expandIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -45,6 +47,8 @@ import `in`.devh.rail.ui.components.TopBar
 import `in`.devh.rail.ui.homepage.HomeContent
 import `in`.devh.rail.ui.urlfetcher.URLFetcherScreen
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.tooling.preview.Preview
+import `in`.devh.rail.ui.theme.RailTheme
 
 val LocalNavController = compositionLocalOf<NavHostController> { error("NavController not provided") }
 
@@ -56,8 +60,6 @@ fun TrainApp(isFirstLaunch: Boolean) {
     CompositionLocalProvider(LocalNavController provides navController) {
         HomeScreen(navController)
     }
-//    HomeScreen(navController)
-//    navController: NavHostController = LocalNavController.current
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,6 +72,14 @@ fun HomeScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+
+    val shouldShowBottomBar = remember(currentRoute) {
+        when (currentRoute) {
+            "home", "pnr", "live_status" -> true
+            else -> false
+        }
+    }
+
 
     if (openDialog.value) {
         AlertDialog(
@@ -105,11 +115,17 @@ fun HomeScreen(
                 )
             },
             bottomBar = {
-                BottomNavBar(
-                    navController = navController,
-                    selectedTab = selectedTab,
-                    setSelectedTab = { selectedTab = it }
-                )
+                AnimatedVisibility(
+                    visible = shouldShowBottomBar,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it })
+                ) {
+                    BottomNavBar(
+                        navController = navController,
+                        selectedTab = selectedTab,
+                        setSelectedTab = { selectedTab = it }
+                    )
+                }
             },
             floatingActionButton = {
                 AnimatedVisibility(
@@ -142,9 +158,7 @@ fun HomeScreen(
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable("home") {
-                    HomeContent(
-                        innerPadding = innerPadding
-                    )
+                    HomeContent()
                 }
                 composable("pnr") {
                     PNRScreen()
@@ -152,7 +166,21 @@ fun HomeScreen(
                 composable("live_status") {
                     URLFetcherScreen()
                 }
+                composable("find_trains") {
+                    FindTrainsPage()
+                }
             }
         }
+    }
+}
+
+
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Preview(showBackground = true)
+@Composable
+fun RailAppPreviewz() {
+    RailTheme(darkTheme = true, dynamicColor = true) {
+        TrainApp(isFirstLaunch = false)
     }
 }

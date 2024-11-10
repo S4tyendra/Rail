@@ -11,10 +11,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.slaviboy.iconscompose.Icon
 import com.slaviboy.iconscompose.R
+import `in`.devh.rail.pages.LocalNavController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -26,8 +29,15 @@ fun TopBar(
     drawerState: DrawerState
 
 ) {
+    val titles = mapOf<String, String>(
+        "home" to "Open Rail",
+        "pnr" to "PNR",
+        "live_status" to "Live Status",
+        "find_trains" to "Available Trains",
+    )
+    val navController = LocalNavController.current
     TopAppBar(
-        title = { Text("Rail Status") },
+        title = { Text(titles[navController.currentDestination?.route] ?: "Open rail") },
         navigationIcon = {
             IconButton(
                 colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
