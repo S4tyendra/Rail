@@ -19,15 +19,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.slaviboy.iconscompose.Icon
 import com.slaviboy.iconscompose.R
-import `in`.devh.rail.*
 
 
 @Composable
-fun SpotTrainCard(train: Train) {
+fun SpotTrainCard(
+    train: Train,
+    onClick: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "SPOT TRAIN",
+                "TRAIN",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -46,7 +48,7 @@ fun SpotTrainCard(train: Train) {
                 Text(text = train.name, modifier = Modifier.weight(1f))
                 IconButton(
                     colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                    onClick = { /* Handle search */ },
+                    onClick = onClick,
                 ) {
                     Icon(
                         modifier = Modifier

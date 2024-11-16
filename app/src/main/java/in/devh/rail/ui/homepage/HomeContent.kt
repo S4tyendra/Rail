@@ -24,6 +24,7 @@ import com.slaviboy.iconscompose.Icon
 import com.slaviboy.iconscompose.R
 import `in`.devh.rail.pages.LocalNavController
 import `in`.devh.rail.ui.components.homepage.StationSearchDialog
+import `in`.devh.rail.ui.components.homepage.TrainSearchDialog
 import `in`.devh.rail.ui.theme.RailTheme
 
 
@@ -35,8 +36,10 @@ fun HomeContent() {
 
     val from = remember { mutableStateOf(sharedPreferences.getString("from", "MAS|Chennai Central") ?: "MAS|Chennai Central") }
     val to = remember { mutableStateOf(sharedPreferences.getString("to", "SBC|KSR Bengaluru City Junction") ?: "SBC|KSR Bengaluru City Junction") }
+    val train = remember { mutableStateOf(sharedPreferences.getString("train", "12604|Chennai Central SF Express") ?: "12604|Chennai Central SF Express") }
     var showSearchDialog = remember { mutableStateOf(false) }
     var isSearchingFrom = remember { mutableStateOf(false) }
+    var isTrainSearching = remember { mutableStateOf(false) }
 
     val navController = LocalNavController.current
 
@@ -98,7 +101,12 @@ fun HomeContent() {
         Spacer(modifier = Modifier.height(16.dp))
 
         // Spot Train Section
-        SpotTrainCard(train = Train("12604", "Chennai Central SF Express"))
+        SpotTrainCard(
+            train = Train(train.value.split("|")[0], train.value.split("|")[1]),
+            onClick = {
+                isTrainSearching.value = true
+            }
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -108,14 +116,14 @@ fun HomeContent() {
         Spacer(modifier = Modifier.height(16.dp))
 
         // Train List
-        TrainList(
-            trains = listOf(
-                Train("12604", "Chennai Central SF Exp...", "HYB - MAS"),
-                Train("18235", "Bilaspur Express cum P...", "BPL - BSP"),
-                Train("17235", "Nagercoil Express", "SBC - NCJ"),
-                Train("22412", "Arunachal AC SF Expre...", "ANVT - NHLN")
-            )
-        )
+//        TrainList(
+//            trains = listOf(
+//                Train("12604", "Chennai Central SF Exp...", "HYB - MAS"),
+//                Train("18235", "Bilaspur Express cum P...", "BPL - BSP"),
+//                Train("17235", "Nagercoil Express", "SBC - NCJ"),
+//                Train("22412", "Arunachal AC SF Expre...", "ANVT - NHLN")
+//            )
+//        )
     }
     if (showSearchDialog.value) {
         StationSearchDialog(
@@ -139,11 +147,21 @@ fun HomeContent() {
             }
         )
     }
+    if (isTrainSearching.value) {
+        TrainSearchDialog (
+            isVisible = isTrainSearching.value,
+            onDismiss = {
+                isTrainSearching.value = false
+            },
+            onTrainSelected = { selectedTrain ->
+                if (isTrainSearching.value) {
+                    val newValue = "${selectedTrain.number}|${selectedTrain.name}"
+                    sharedPreferences.edit().putString("train", newValue).apply()
+                    train.value = newValue
+                }
+                showSearchDialog.value = false
+            }
+        )
+    }
 
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HomeContentPreview() {
-    RailTheme { HomeContent() }
 }

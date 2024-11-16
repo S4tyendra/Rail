@@ -19,7 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import `in`.devh.rail.ui.homepage.SearchStationRow
+import `in`.devh.rail.ui.homepage.SearchTrainRow
 import `in`.devh.rail.ui.homepage.Station
+import `in`.devh.rail.ui.homepage.Train
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -27,10 +29,10 @@ import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StationSearchDialog(
+fun TrainSearchDialog(
     isVisible: Boolean,
     onDismiss: () -> Unit,
-    onStationSelected: (Station) -> Unit
+    onTrainSelected: (Train) -> Unit
 ) {
     if (!isVisible) return
 
@@ -40,16 +42,16 @@ fun StationSearchDialog(
 
     val focusRequester = remember { FocusRequester() }
     var searchQuery by remember { mutableStateOf("") }
-    var stations by remember { mutableStateOf<List<Station>>(emptyList()) }
+    var trains by remember { mutableStateOf<List<Train>>(emptyList()) }
     val context = LocalContext.current
 
     LaunchedEffect(searchQuery) {
         if (searchQuery.isEmpty()) {
-            stations = emptyList()
+            trains = emptyList()
             return@LaunchedEffect
         }
-        stations = withContext(Dispatchers.IO) {
-            searchStations(context, searchQuery)
+        trains = withContext(Dispatchers.IO) {
+            searchTrains(context, searchQuery)
         }
     }
     LaunchedEffect(isVisible) {
@@ -86,23 +88,21 @@ fun StationSearchDialog(
                             }
                         }
                     },
-                    placeholder = { Text("Search stations...") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester)
+                    placeholder = { Text("Search trains...") },
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
                 ) {
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(16.dp)
                     ) {
-                        items(stations) { station ->
-                            SearchStationRow(
-                                station = station,
+                        items(trains) { train ->
+                            SearchTrainRow(
+                                train = train,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp),
                                 onClick = {
-                                    onStationSelected(station)
+                                    onTrainSelected(train)
                                     onDismiss()
                                 },
                             )
@@ -124,7 +124,7 @@ fun StationSearchDialog(
     }
 }
 
-private fun searchStations(context: Context, query: String): List<Station> {
+private fun searchTrains(context: Context, query: String): List<Train> {
     val dbFile = File(context.cacheDir, "ir.db")
     if (!dbFile.exists()) {
         context.assets.open("ir.db").use { input ->
@@ -142,38 +142,36 @@ private fun searchStations(context: Context, query: String): List<Station> {
 
         // Modified SQL query with improved ranking logic
         val sql = """
-            SELECT code, name, offName FROM Stn 
-            WHERE code LIKE ? OR name LIKE ? OR offName LIKE ?
+            SELECT number, name, offName FROM Trn 
+            WHERE number LIKE ? OR name LIKE ? OR offName LIKE ?
             ORDER BY 
                 CASE 
-                    WHEN code = ? THEN 1           -- Exact code match
+                    WHEN number = ? THEN 1           -- Exact code match
                     WHEN name = ? THEN 2           -- Exact name match
                     WHEN offName = ? THEN 3        -- Exact official name match
-                    WHEN code LIKE ? THEN 4        -- Code starts with query
+                    WHEN number LIKE ? THEN 4        -- Code starts with query
                     WHEN name LIKE ? THEN 5        -- Name starts with query
                     WHEN offName LIKE ? THEN 6     -- Official name starts with query
-                    WHEN length(code) <= 3 THEN 7  -- Short codes (likely major stations)
+                    WHEN length(number) <= 3 THEN 7  -- Short codes (likely major stations)
                     ELSE 8
                 END,
-                length(code),                      -- Shorter codes first
+                length(number),                      -- Shorter codes first
                 length(name)                       -- Shorter names next
             LIMIT 15
         """.trimIndent()
 
-        val cursor = db.rawQuery(
-            sql, arrayOf(
-                searchPattern, searchPattern, searchPattern,  // LIKE patterns for general matches
-                exactPattern, exactPattern, exactPattern,     // Exact matches
-                "$query%", "$query%", "$query%"              // Starts with patterns
-            )
-        )
+        val cursor = db.rawQuery(sql, arrayOf(
+            searchPattern, searchPattern, searchPattern,  // LIKE patterns for general matches
+            exactPattern, exactPattern, exactPattern,     // Exact matches
+            "$query%", "$query%", "$query%"              // Starts with patterns
+        ))
 
-        val results = mutableListOf<Station>()
+        val results = mutableListOf<Train>()
         cursor.use {
             while (it.moveToNext()) {
                 results.add(
-                    Station(
-                        code = it.getString(0),
+                    Train(
+                        number = it.getString(0),
                         name = it.getString(1)
                     )
                 )
